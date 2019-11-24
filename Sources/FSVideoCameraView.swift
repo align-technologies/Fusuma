@@ -72,7 +72,7 @@ final class FSVideoCameraView: UIView {
             let totalSeconds = 60.0 //Total Seconds of capture time
             let timeScale: Int32 = 30 //FPS
             
-            let maxDuration = CMTimeMakeWithSeconds(totalSeconds, preferredTimescale: timeScale)
+            let maxDuration = CMTimeMakeWithSeconds(totalSeconds, timeScale)
             
             videoOutput?.maxRecordedDuration = maxDuration
             videoOutput?.minFreeDiskSpaceLimit = 1024 * 1024 //SET MIN FREE SPACE IN BYTES FOR RECORDING TO CONTINUE ON A VOLUME
