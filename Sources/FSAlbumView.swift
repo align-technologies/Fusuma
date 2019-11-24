@@ -68,7 +68,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     
     func initialize() {
         
-        if images != nil { return }
+        if images != nil  { images = nil }
 		
 		self.isHidden = false
 
@@ -505,37 +505,43 @@ private extension FSAlbumView {
     
     // Check the status of authorization for PHPhotoLibrary
     func checkPhotoAuth() {
-        
-        PHPhotoLibrary.requestAuthorization { (status) -> Void in
+        switch PHPhotoLibrary.authorizationStatus() {
+        case .authorized:
+            self.imageManager = PHCachingImageManager()
             
-            switch status {
-                
-            case .authorized:
-            
-                self.imageManager = PHCachingImageManager()
-                
-                if let images = self.images, images.count > 0 {
-                    
-                    self.changeImage(images[0])
-                }
-                
-                DispatchQueue.main.async {
-                    
-                    self.delegate?.albumViewCameraRollAuthorized()
-                }
-                
-            case .restricted, .denied:
-                
-                DispatchQueue.main.async(execute: { () -> Void in
-                    
-                    self.delegate?.albumViewCameraRollUnauthorized()
-                })
-                
-            default:
-                
-                break
+            if let images = self.images, images.count > 0 {
+                self.changeImage(images[0])
             }
-        }
+            DispatchQueue.main.async {
+                self.delegate?.albumViewCameraRollAuthorized()
+            }
+         case .restricted, .denied:
+            DispatchQueue.main.async(execute: { () -> Void in
+                self.delegate?.albumViewCameraRollUnauthorized()
+            })
+        case .notDetermined:
+            PHPhotoLibrary.requestAuthorization { (status) -> Void in
+                switch status {
+                case .authorized:
+                    self.imageManager = PHCachingImageManager()
+                    
+                    if let images = self.images, images.count > 0 {
+                        self.changeImage(images[0])
+                    }
+                    DispatchQueue.main.async {
+                        self.delegate?.albumViewCameraRollAuthorized()
+                    }
+                case .restricted, .denied:
+                    DispatchQueue.main.async(execute: { () -> Void in
+                        self.delegate?.albumViewCameraRollUnauthorized()
+                    })
+                default:
+                    break
+                }
+            }
+        default:
+            break
+        }    
     }
 
     // MARK: - Asset Caching

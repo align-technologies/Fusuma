@@ -288,10 +288,10 @@ public struct ImageMetadata {
             
             cameraView.croppedAspectRatioConstraint = NSLayoutConstraint(
                 item: cameraView.previewViewContainer,
-                attribute: NSLayoutConstraint.Attribute.height,
-                relatedBy: NSLayoutConstraint.Relation.equal,
+                attribute: NSLayoutAttribute.height,
+                relatedBy: NSLayoutRelation.equal,
                 toItem: cameraView.previewViewContainer,
-                attribute: NSLayoutConstraint.Attribute.width,
+                attribute: NSLayoutAttribute.width,
                 multiplier: heightRatio,
                 constant: 0)
             cameraView.fullAspectRatioConstraint.isActive     = false
@@ -312,7 +312,10 @@ public struct ImageMetadata {
 
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
+        self.loadPhotos()
+    }
+    
+    private func loadPhotos() {
         if availableModes.contains(.camera) {
             
             albumView.frame = CGRect(origin: CGPoint.zero, size: photoLibraryViewerContainer.frame.size)
@@ -332,7 +335,7 @@ public struct ImageMetadata {
             videoView.frame = CGRect(origin: CGPoint.zero, size: videoShotContainer.frame.size)
             videoView.layoutIfNeeded()
             videoView.initialize()
-        }        
+        }
     }
     
     public override func viewWillDisappear(_ animated: Bool) {
@@ -538,7 +541,7 @@ extension FusumaViewController: FSAlbumViewDelegate, FSCameraViewDelegate, FSVid
     }
     
     public func albumViewCameraRollAuthorized() {
-        
+        self.loadPhotos()
         // in the case that we're just coming back from granting photo gallery permissions
         // ensure the done button is visible if it should be
         self.updateDoneButtonVisibility()
@@ -604,24 +607,24 @@ private extension FusumaViewController {
             
             titleLabel.text = NSLocalizedString(fusumaCameraRollTitle, comment: fusumaCameraRollTitle)
             highlightButton(libraryButton)
-            self.view.bringSubviewToFront(photoLibraryViewerContainer)
+            self.view.bringSubview(toFront: photoLibraryViewerContainer)
         
         case .camera:
 
             titleLabel.text = NSLocalizedString(fusumaCameraTitle, comment: fusumaCameraTitle)
             highlightButton(cameraButton)
-            self.view.bringSubviewToFront(cameraShotContainer)
+            self.view.bringSubview(toFront: cameraShotContainer)
             cameraView.startCamera()
             
         case .video:
             
             titleLabel.text = NSLocalizedString(fusumaVideoTitle, comment: fusumaVideoTitle)
             highlightButton(videoButton)
-            self.view.bringSubviewToFront(videoShotContainer)
+            self.view.bringSubview(toFront: videoShotContainer)
             videoView.startCamera()
         }
         
-        self.view.bringSubviewToFront(menuView)
+        self.view.bringSubview(toFront: menuView)
     }
     
     func updateDoneButtonVisibility() {
