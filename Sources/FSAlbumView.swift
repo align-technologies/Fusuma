@@ -130,13 +130,15 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         images = PHAsset.fetchAssets(with: .image, options: options)
         
         if images.count > 0 {
-            if autoSelectFirstImage == true {
-                changeImage(images[0])
-                collectionView.reloadData()
-                collectionView.selectItem(at: IndexPath(row: 0, section: 0), animated: false, scrollPosition: UICollectionView.ScrollPosition())
-            } else {
-                self.updateImageViewOnly(images[0])
-                collectionView.reloadData()
+            DispatchQueue.main.async {
+                if self.autoSelectFirstImage == true {
+                    self.changeImage(self.images[0])
+                    self.collectionView.reloadData()
+                    self.collectionView.selectItem(at: IndexPath(row: 0, section: 0), animated: false, scrollPosition: UICollectionView.ScrollPosition())
+                } else {
+                    self.updateImageViewOnly(self.images[0])
+                    self.collectionView.reloadData()
+                }
             }
         }
     }
@@ -513,7 +515,7 @@ private extension FSAlbumView {
         case .authorized:
             self.imageManager = PHCachingImageManager()
             self.loadImages()
-            if let images = self.images, images.count > 0 {
+            if let images = self.images, images.count > 0, self.autoSelectFirstImage == true {
                 self.changeImage(images[0])
             }
             DispatchQueue.main.async {
@@ -530,7 +532,7 @@ private extension FSAlbumView {
                 case .authorized:
                     self.imageManager = PHCachingImageManager()
                     self.loadImages()
-                    if let images = self.images, images.count > 0 {
+                    if let images = self.images, images.count > 0, self.autoSelectFirstImage == true {
                         self.changeImage(images[0])
                     }
                     DispatchQueue.main.async {
