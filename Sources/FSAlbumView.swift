@@ -68,7 +68,7 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     
     func initialize() {
         
-        if images != nil  { images = nil }
+        if images != nil  { return }
 		
 		self.isHidden = false
 
@@ -106,6 +106,21 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         // Never load photos Unless the user allows to access to photo album
         checkPhotoAuth()
         
+        self.loadImages()
+        
+        PHPhotoLibrary.shared().register(self)
+        
+    }
+    
+    deinit {
+        
+        if PHPhotoLibrary.authorizationStatus() == PHAuthorizationStatus.authorized {
+            
+            PHPhotoLibrary.shared().unregisterChangeObserver(self)
+        }
+    }
+    
+    func loadImages() {
         // Sorting condition
         let options = PHFetchOptions()
         options.sortDescriptors = [
@@ -123,17 +138,6 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
                 self.updateImageViewOnly(images[0])
                 collectionView.reloadData()
             }
-        }
-        
-        PHPhotoLibrary.shared().register(self)
-        
-    }
-    
-    deinit {
-        
-        if PHPhotoLibrary.authorizationStatus() == PHAuthorizationStatus.authorized {
-            
-            PHPhotoLibrary.shared().unregisterChangeObserver(self)
         }
     }
     
@@ -508,11 +512,12 @@ private extension FSAlbumView {
         switch PHPhotoLibrary.authorizationStatus() {
         case .authorized:
             self.imageManager = PHCachingImageManager()
-            
+            self.loadImages()
             if let images = self.images, images.count > 0 {
                 self.changeImage(images[0])
             }
             DispatchQueue.main.async {
+                self.loadImages()
                 self.delegate?.albumViewCameraRollAuthorized()
             }
          case .restricted, .denied:
@@ -524,7 +529,7 @@ private extension FSAlbumView {
                 switch status {
                 case .authorized:
                     self.imageManager = PHCachingImageManager()
-                    
+                    self.loadImages()
                     if let images = self.images, images.count > 0 {
                         self.changeImage(images[0])
                     }
