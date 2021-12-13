@@ -77,6 +77,19 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     private var dragStartPos: CGPoint = CGPoint.zero
     private let dragDiff: CGFloat     = 20.0
     
+    private var isAuthorized: Bool {
+        if #available(iOS 14, *) {
+            if PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited || PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized {
+                return true
+            }
+        } else {
+            if PHPhotoLibrary.authorizationStatus() == PHAuthorizationStatus.authorized {
+                return true
+            }
+        }
+        return false
+    }
+    
     static func instance() -> FSAlbumView {
         
         return UINib(nibName: "FSAlbumView", bundle: Bundle(for: self.classForCoder())).instantiate(withOwner: self, options: nil)[0] as! FSAlbumView
@@ -127,9 +140,9 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         checkPhotoAuth()
         
         self.loadImages()
-        
-        PHPhotoLibrary.shared().register(self)
-        
+        if isAuthorized {
+            PHPhotoLibrary.shared().register(self)
+        }
     }
     
     deinit {
@@ -141,23 +154,25 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     }
     
     func loadImages() {
-        // Sorting condition
-        let options = PHFetchOptions()
-        options.sortDescriptors = [
-            NSSortDescriptor(key: "creationDate", ascending: false)
-        ]
-        
-        images = PHAsset.fetchAssets(with: .image, options: options)
-        
-        if images.count > 0 {
-            DispatchQueue.main.async {
-                if self.autoSelectFirstImage == true {
-                    self.changeImage(self.images[0])
-                    self.collectionView.reloadData()
-                    self.collectionView.selectItem(at: IndexPath(row: 0, section: 0), animated: false, scrollPosition: UICollectionView.ScrollPosition())
-                } else {
-                    self.updateImageViewOnly(self.images[0])
-                    self.collectionView.reloadData()
+        if isAuthorized {
+            // Sorting condition
+            let options = PHFetchOptions()
+            options.sortDescriptors = [
+                NSSortDescriptor(key: "creationDate", ascending: false)
+            ]
+            
+            images = PHAsset.fetchAssets(with: .image, options: options)
+            
+            if images.count > 0 {
+                DispatchQueue.main.async {
+                    if self.autoSelectFirstImage == true {
+                        self.changeImage(self.images[0])
+                        self.collectionView.reloadData()
+                        self.collectionView.selectItem(at: IndexPath(row: 0, section: 0), animated: false, scrollPosition: UICollectionView.ScrollPosition())
+                    } else {
+                        self.updateImageViewOnly(self.images[0])
+                        self.collectionView.reloadData()
+                    }
                 }
             }
         }
