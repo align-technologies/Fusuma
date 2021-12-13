@@ -76,11 +76,11 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
         
         for device in AVCaptureDevice.devices() {
             
-            if let _device = device as? AVCaptureDevice, _device.position == initialCaptureDevicePosition {
+            if device.position == initialCaptureDevicePosition {
                 
-                self.device = _device
+                self.device = device
                 
-                if !_device.hasFlash {
+                if !device.hasFlash {
                     
                     flashButton.isHidden = true
                 }
@@ -98,11 +98,11 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
           
             videoLayer = AVCaptureVideoPreviewLayer(session: session)
             videoLayer?.frame = self.previewViewContainer.bounds
-            videoLayer?.videoGravity = AVLayerVideoGravityResizeAspectFill
+            videoLayer?.videoGravity = AVLayerVideoGravity(rawValue: convertFromAVLayerVideoGravity(AVLayerVideoGravity.resizeAspectFill))
           
             self.previewViewContainer.layer.addSublayer(videoLayer!)
           
-            session.sessionPreset = AVCaptureSessionPresetPhoto
+            session.sessionPreset = AVCaptureSession.Preset(rawValue: convertFromAVCaptureSessionPreset(AVCaptureSession.Preset.photo))
           
             session.startRunning()
           
@@ -117,7 +117,7 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
         
         self.startCamera()
         
-        NotificationCenter.default.addObserver(self, selector: #selector(FSCameraView.willEnterForegroundNotification(_:)), name: NSNotification.Name.UIApplicationWillEnterForeground, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(FSCameraView.willEnterForegroundNotification(_:)), name: UIApplication.willEnterForegroundNotification, object: nil)
     }
     
     @objc func willEnterForegroundNotification(_ notification: Notification) {
@@ -132,7 +132,7 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
     
     func startCamera() {
         
-        switch AVCaptureDevice.authorizationStatus(forMediaType: AVMediaTypeVideo) {
+        switch AVCaptureDevice.authorizationStatus(for: AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.video))) {
             
         case .authorized:
             
@@ -181,7 +181,7 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
         
         DispatchQueue.global(qos: .default).async(execute: { () -> Void in
 
-            let videoConnection = imageOutput.connection(withMediaType: AVMediaTypeVideo)
+            let videoConnection = imageOutput.connection(with: AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.video)))
             
             imageOutput.captureStillImageAsynchronously(from: videoConnection!) { (buffer, error) -> Void in
                 
@@ -196,7 +196,7 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
                         return
                 }
                 
-                let rect   = videoLayer.metadataOutputRectOfInterest(for: videoLayer.bounds)
+                let rect   = videoLayer.metadataOutputRectConverted(fromLayerRect: videoLayer.bounds)
                 let width  = CGFloat(cgImage.width)
                 let height = CGFloat(cgImage.height)
                 
@@ -244,18 +244,16 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
             if let session = session {
                 
                 for input in session.inputs {
-                    if let _input = input as? AVCaptureInput {
-                        session.removeInput(_input )
-                    }
+                    session.removeInput(input )
                 }
 
                 let position = (videoInput?.device.position == AVCaptureDevice.Position.front) ? AVCaptureDevice.Position.back : AVCaptureDevice.Position.front
 
-                for device in AVCaptureDevice.devices(withMediaType: AVMediaTypeVideo) {
+                for device in AVCaptureDevice.devices(for: AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.video))) {
 
-                    if let _device = device as? AVCaptureDevice, _device.position == position {
+                    if device.position == position {
                  
-                        videoInput = try AVCaptureDeviceInput(device: _device)
+                        videoInput = try AVCaptureDeviceInput(device: device)
                         session.addInput(videoInput!)
                     }
                 }
@@ -286,12 +284,12 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
             case .off:
                 
                 device.flashMode = AVCaptureDevice.FlashMode.on
-                flashButton.setImage(flashOnImage?.withRenderingMode(.alwaysTemplate), for: UIControlState())
+                flashButton.setImage(flashOnImage?.withRenderingMode(.alwaysTemplate), for: UIControl.State())
                 
             case .on:
                 
                 device.flashMode = AVCaptureDevice.FlashMode.off
-                flashButton.setImage(flashOffImage?.withRenderingMode(.alwaysTemplate), for: UIControlState())
+                flashButton.setImage(flashOffImage?.withRenderingMode(.alwaysTemplate), for: UIControl.State())
                 
             default:
                 
@@ -302,7 +300,7 @@ final class FSCameraView: UIView, UIGestureRecognizerDelegate {
 
         } catch _ {
 
-            flashButton.setImage(flashOffImage?.withRenderingMode(.alwaysTemplate), for: UIControlState())
+            flashButton.setImage(flashOffImage?.withRenderingMode(.alwaysTemplate), for: UIControl.State())
             
             return
         }
@@ -327,7 +325,7 @@ fileprivate extension FSCameraView {
         let viewsize = self.bounds.size
         let newPoint = CGPoint(x: point.y/viewsize.height, y: 1.0-point.x/viewsize.width)
         
-        guard let device = AVCaptureDevice.defaultDevice(withMediaType: AVMediaTypeVideo) else {
+        guard let device = AVCaptureDevice.default(for: AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.video))) else {
             
             return
         }
@@ -369,7 +367,7 @@ fileprivate extension FSCameraView {
                        delay: 0.0,
                        usingSpringWithDamping: 0.8,
                        initialSpringVelocity: 3.0,
-                       options: UIViewAnimationOptions.curveEaseIn,
+                       options: UIView.AnimationOptions.curveEaseIn,
                        animations: {
             
                 focusView.alpha = 1.0
@@ -393,7 +391,7 @@ fileprivate extension FSCameraView {
                 try device.lockForConfiguration()
                 
                 device.flashMode = AVCaptureDevice.FlashMode.off
-                flashButton.setImage(flashOffImage?.withRenderingMode(.alwaysTemplate), for: UIControlState())
+                flashButton.setImage(flashOffImage?.withRenderingMode(.alwaysTemplate), for: UIControl.State())
                 
                 device.unlockForConfiguration()
                 
@@ -407,7 +405,7 @@ fileprivate extension FSCameraView {
 
     var cameraIsAvailable: Bool {
 
-        let status = AVCaptureDevice.authorizationStatus(forMediaType: AVMediaTypeVideo)
+        let status = AVCaptureDevice.authorizationStatus(for: AVMediaType(rawValue: convertFromAVMediaType(AVMediaType.video)))
 
         if status == AVAuthorizationStatus.authorized {
 
@@ -416,4 +414,19 @@ fileprivate extension FSCameraView {
 
         return false
     }
+}
+
+// Helper function inserted by Swift 4.2 migrator.
+fileprivate func convertFromAVLayerVideoGravity(_ input: AVLayerVideoGravity) -> String {
+	return input.rawValue
+}
+
+// Helper function inserted by Swift 4.2 migrator.
+fileprivate func convertFromAVCaptureSessionPreset(_ input: AVCaptureSession.Preset) -> String {
+	return input.rawValue
+}
+
+// Helper function inserted by Swift 4.2 migrator.
+fileprivate func convertFromAVMediaType(_ input: AVMediaType) -> String {
+	return input.rawValue
 }
