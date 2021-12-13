@@ -15,6 +15,8 @@ public protocol FSAlbumViewDelegate: class {
 
     func albumViewCameraRollUnauthorized()
     func albumViewCameraRollAuthorized()
+    
+    func presentAddMorePhotos()
 }
 
 final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDelegate, PHPhotoLibraryChangeObserver, UIGestureRecognizerDelegate {
@@ -25,7 +27,16 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     
     @IBOutlet weak var collectionViewConstraintHeight: NSLayoutConstraint!
     @IBOutlet weak var imageCropViewConstraintTop: NSLayoutConstraint!
-
+    @IBOutlet weak var addMorePhotosHeight: NSLayoutConstraint! {
+        didSet {
+            if #available(iOS 14, *), PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited {
+                addMorePhotosHeight.constant = 50
+            } else {
+                addMorePhotosHeight.constant = 00
+            }
+        }
+    }
+    
     weak var delegate: FSAlbumViewDelegate? = nil
     var allowMultipleSelection = false
     
@@ -49,7 +60,12 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     
     fileprivate var dragDirection = Direction.up
 
-    private let imageCropViewOriginalConstraintTop: CGFloat = 50
+    private var imageCropViewOriginalConstraintTop: CGFloat {
+        if #available(iOS 14, *), PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited {
+            return 92
+        }
+        return 50
+    }
     private let imageCropViewMinimalVisibleHeight: CGFloat  = 100
     private var imaginaryCollectionViewOffsetStartPosY: CGFloat = 0.0
     
@@ -87,7 +103,11 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
         self.addGestureRecognizer(panGesture)
         
         collectionViewConstraintHeight.constant = self.frame.height - imageCropViewContainer.frame.height - imageCropViewOriginalConstraintTop
-        imageCropViewConstraintTop.constant = 50
+        if #available(iOS 14, *), PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited {
+            imageCropViewConstraintTop.constant = 92
+        } else {
+            imageCropViewConstraintTop.constant = 50
+        }
         dragDirection = Direction.up
         
         imageCropViewContainer.layer.shadowColor   = UIColor.black.cgColor
@@ -132,6 +152,10 @@ final class FSAlbumView: UIView, UICollectionViewDataSource, UICollectionViewDel
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
         
         return true
+    }
+    
+    @IBAction func addMorePhotos(_ sender: UIButton) {
+        delegate?.presentAddMorePhotos()
     }
     
     @objc func panned(_ sender: UITapGestureRecognizer) {
@@ -469,35 +493,50 @@ private extension FSAlbumView {
     
     // Check the status of authorization for PHPhotoLibrary
     func checkPhotoAuth() {
-        
-        PHPhotoLibrary.requestAuthorization { (status) -> Void in
-            
-            switch status {
-                
-            case .authorized:
-            
-                self.imageManager = PHCachingImageManager()
-                
-                if let images = self.images, images.count > 0 {
+        if #available(iOS 14, *) {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                switch status {
+                case .authorized, .limited:
+                    self.imageManager = PHCachingImageManager()
                     
-                    self.changeImage(images[0])
+                    if let images = self.images, images.count > 0 {
+                        
+                        self.changeImage(images[0])
+                    }
+                    DispatchQueue.main.async {
+                        if status == .limited {
+                            self.addMorePhotosHeight.constant = 50
+                        }
+                        self.delegate?.albumViewCameraRollAuthorized()
+                    }
+                case .denied, .restricted:
+                    DispatchQueue.main.async(execute: { () -> Void in
+                        self.delegate?.albumViewCameraRollUnauthorized()
+                    })
+                default:
+                    break
                 }
-                
-                DispatchQueue.main.async {
+            }
+        } else {
+            PHPhotoLibrary.requestAuthorization { (status) -> Void in
+                switch status {
+                case .authorized:
+                    self.imageManager = PHCachingImageManager()
                     
-                    self.delegate?.albumViewCameraRollAuthorized()
+                    if let images = self.images, images.count > 0 {
+                        
+                        self.changeImage(images[0])
+                    }
+                    DispatchQueue.main.async {
+                        self.delegate?.albumViewCameraRollAuthorized()
+                    }
+                case .restricted, .denied:
+                    DispatchQueue.main.async(execute: { () -> Void in
+                        self.delegate?.albumViewCameraRollUnauthorized()
+                    })
+                default:
+                    break
                 }
-                
-            case .restricted, .denied:
-                
-                DispatchQueue.main.async(execute: { () -> Void in
-                    
-                    self.delegate?.albumViewCameraRollUnauthorized()
-                })
-                
-            default:
-                
-                break
             }
         }
     }

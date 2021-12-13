@@ -8,6 +8,7 @@
 
 import UIKit
 import Photos
+import PhotosUI
 
 fileprivate func < <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
     
@@ -130,7 +131,6 @@ public struct ImageMetadata {
     lazy var videoView  = FSVideoCameraView.instance()
 
     fileprivate var hasGalleryPermission: Bool {
-        
         return PHPhotoLibrary.authorizationStatus() == .authorized
     }
     
@@ -524,6 +524,12 @@ extension FusumaViewController: FSAlbumViewDelegate, FSCameraViewDelegate, FSVid
         self.updateDoneButtonVisibility()
     }
     
+    public func presentAddMorePhotos() {
+        if #available(iOS 14, *) {
+            PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: self)
+        }
+    }
+    
     // MARK: FSAlbumViewDelegate
     public func albumViewCameraRollUnauthorized() {
         
@@ -584,24 +590,24 @@ private extension FusumaViewController {
             
             titleLabel.text = NSLocalizedString(fusumaCameraRollTitle, comment: fusumaCameraRollTitle)
             highlightButton(libraryButton)
-            self.view.bringSubviewToFront(photoLibraryViewerContainer)
+            self.view.bringSubview(toFront: photoLibraryViewerContainer)
         
         case .camera:
 
             titleLabel.text = NSLocalizedString(fusumaCameraTitle, comment: fusumaCameraTitle)
             highlightButton(cameraButton)
-            self.view.bringSubviewToFront(cameraShotContainer)
+            self.view.bringSubview(toFront: cameraShotContainer)
             cameraView.startCamera()
             
         case .video:
             
             titleLabel.text = NSLocalizedString(fusumaVideoTitle, comment: fusumaVideoTitle)
             highlightButton(videoButton)
-            self.view.bringSubviewToFront(videoShotContainer)
+            self.view.bringSubview(toFront: videoShotContainer)
             videoView.startCamera()
         }
         
-        self.view.bringSubviewToFront(menuView)
+        self.view.bringSubview(toFront: menuView)
     }
     
     func updateDoneButtonVisibility() {
