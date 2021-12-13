@@ -44,6 +44,7 @@ public protocol FusumaDelegate: class {
     func fusumaDismissedWithImage(_ image: UIImage, source: FusumaMode)
     func fusumaClosed()
     func fusumaWillClosed()
+    func fusumaLimitReached()
 }
 
 public extension FusumaDelegate {
@@ -52,6 +53,7 @@ public extension FusumaDelegate {
     func fusumaDismissedWithImage(_ image: UIImage, source: FusumaMode) {}
     func fusumaClosed() {}
     func fusumaWillClosed() {}
+    func fusumaLimitReached() {}
 }
 
 public var fusumaBaseTintColor   = UIColor.hex("#c9c7c8", alpha: 1.0)
@@ -108,6 +110,8 @@ public struct ImageMetadata {
 
     public var cropHeightRatio: CGFloat = 1
     public var allowMultipleSelection: Bool = false
+    public var photoSelectionLimit: Int = 1
+    public var autoSelectFirstImage: Bool = false
 
     fileprivate var mode: FusumaMode = .library
     
@@ -161,6 +165,8 @@ public struct ImageMetadata {
         menuView.addBottomBorder(UIColor.black, width: 1.0)
 
         albumView.allowMultipleSelection = allowMultipleSelection
+        albumView.photoSelectionLimit = photoSelectionLimit
+        albumView.autoSelectFirstImage = autoSelectFirstImage
         
         libraryButton.tintColor = fusumaTintColor
         cameraButton.tintColor  = fusumaTintColor
@@ -297,6 +303,7 @@ public struct ImageMetadata {
             cameraView.croppedAspectRatioConstraint?.isActive = false
         }
         cameraView.initialCaptureDevicePosition = cameraPosition
+        self.doneButton.isEnabled = false
     }
     
     override public func viewWillAppear(_ animated: Bool) {
@@ -305,7 +312,10 @@ public struct ImageMetadata {
 
     override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
+        self.loadPhotos()
+    }
+    
+    private func loadPhotos() {
         if availableModes.contains(.camera) {
             
             albumView.frame = CGRect(origin: CGPoint.zero, size: photoLibraryViewerContainer.frame.size)
@@ -325,13 +335,21 @@ public struct ImageMetadata {
             videoView.frame = CGRect(origin: CGPoint.zero, size: videoShotContainer.frame.size)
             videoView.layoutIfNeeded()
             videoView.initialize()
-        }        
+        }
     }
     
     public override func viewWillDisappear(_ animated: Bool) {
         
         super.viewWillDisappear(animated)
         self.stopAll()
+    }
+    
+    override public var shouldAutorotate: Bool {
+        return false
+    }
+    
+    override public var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        return .portrait
     }
 
     override public var prefersStatusBarHidden : Bool {
@@ -365,7 +383,6 @@ public struct ImageMetadata {
     }
     
     @IBAction func doneButtonPressed(_ sender: UIButton) {
-        
         allowMultipleSelection ? fusumaDidFinishInMultipleMode() : fusumaDidFinishInSingleMode()
     }
     
@@ -490,7 +507,6 @@ public struct ImageMetadata {
                 if asset == self.albumView.selectedAssets.last {
                     
                     self.doDismiss {
-
                         self.delegate?.fusumaMultipleImageSelected(images, source: self.mode)
                     }
                 }
@@ -500,6 +516,13 @@ public struct ImageMetadata {
 }
 
 extension FusumaViewController: FSAlbumViewDelegate, FSCameraViewDelegate, FSVideoCameraViewDelegate {
+    public func albumbSelectionLimitReached() {
+        self.delegate?.fusumaLimitReached()
+    }
+    
+    public func albumShouldEnableDoneButton(isEnabled: Bool) {
+        self.doneButton.isEnabled = isEnabled
+    }
     
     public func getCropHeightRatio() -> CGFloat {
         
@@ -518,7 +541,7 @@ extension FusumaViewController: FSAlbumViewDelegate, FSCameraViewDelegate, FSVid
     }
     
     public func albumViewCameraRollAuthorized() {
-        
+        self.loadPhotos()
         // in the case that we're just coming back from granting photo gallery permissions
         // ensure the done button is visible if it should be
         self.updateDoneButtonVisibility()
@@ -590,24 +613,24 @@ private extension FusumaViewController {
             
             titleLabel.text = NSLocalizedString(fusumaCameraRollTitle, comment: fusumaCameraRollTitle)
             highlightButton(libraryButton)
-            self.view.bringSubview(toFront: photoLibraryViewerContainer)
+            self.view.bringSubviewToFront(photoLibraryViewerContainer)
         
         case .camera:
 
             titleLabel.text = NSLocalizedString(fusumaCameraTitle, comment: fusumaCameraTitle)
             highlightButton(cameraButton)
-            self.view.bringSubview(toFront: cameraShotContainer)
+            self.view.bringSubviewToFront(cameraShotContainer)
             cameraView.startCamera()
             
         case .video:
             
             titleLabel.text = NSLocalizedString(fusumaVideoTitle, comment: fusumaVideoTitle)
             highlightButton(videoButton)
-            self.view.bringSubview(toFront: videoShotContainer)
+            self.view.bringSubviewToFront(videoShotContainer)
             videoView.startCamera()
         }
         
-        self.view.bringSubview(toFront: menuView)
+        self.view.bringSubviewToFront(menuView)
     }
     
     func updateDoneButtonVisibility() {
