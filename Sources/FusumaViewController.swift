@@ -34,8 +34,8 @@ fileprivate func > <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
 
 public protocol FusumaDelegate: class {
     
-    func fusumaImageSelected(_ image: UIImage, source: FusumaMode)
-    func fusumaMultipleImageSelected(_ images: [UIImage], source: FusumaMode)
+    func fusumaImageSelected(_ image: FSImageData, source: FusumaMode)
+    func fusumaMultipleImageSelected(_ images: [FSImageData], source: FusumaMode)
     func fusumaVideoCompleted(withFileURL fileURL: URL)
     func fusumaCameraRollUnauthorized()
     
@@ -91,6 +91,11 @@ public var autoDismiss: Bool = true
         
         return [.camera, .library, .video]
     }
+}
+
+public struct FSImageData {
+    public let image: UIImage
+    public let metaData: ImageMetadata?
 }
 
 public struct ImageMetadata {
@@ -418,13 +423,6 @@ public struct ImageMetadata {
             
             requestImage(with: self.albumView.phAsset, cropRect: cropRect) { (asset, image) in
                 
-                self.delegate?.fusumaImageSelected(image, source: self.mode)
-                
-                self.doDismiss {
-
-                    self.delegate?.fusumaDismissedWithImage(image, source: self.mode)
-                }
-                
                 let metaData = ImageMetadata(
                     mediaType: self.albumView.phAsset.mediaType,
                     pixelWidth: self.albumView.phAsset.pixelWidth,
@@ -437,13 +435,20 @@ public struct ImageMetadata {
                     isHidden: self.albumView.phAsset.isHidden,
                     asset: self.albumView.phAsset)
                 
+                self.delegate?.fusumaImageSelected(FSImageData(image: image, metaData: metaData), source: self.mode)
+                
+                self.doDismiss {
+
+                    self.delegate?.fusumaDismissedWithImage(image, source: self.mode)
+                }
+                
                 self.delegate?.fusumaImageSelected(image, source: self.mode, metaData: metaData)
             }
             
         } else {
             
             print("no image to crop")
-            delegate?.fusumaImageSelected(view.image, source: mode)
+            delegate?.fusumaImageSelected(FSImageData(image: view.image, metaData: nil), source: mode)
             
             self.doDismiss {
 
@@ -496,13 +501,25 @@ public struct ImageMetadata {
         let cropRect = CGRect(x: normalizedX, y: normalizedY,
                               width: normalizedWidth, height: normalizedHeight)
         
-        var images = [UIImage]()
+        var images = [FSImageData]()
         
         for asset in albumView.selectedAssets {
             
             requestImage(with: asset, cropRect: cropRect) { asset, result in
                 
-                images.append(result)
+                let metaData = ImageMetadata(
+                    mediaType: asset.mediaType,
+                    pixelWidth: asset.pixelWidth,
+                    pixelHeight: asset.pixelHeight,
+                    creationDate: asset.creationDate,
+                    modificationDate: asset.modificationDate,
+                    location: asset.location,
+                    duration: asset.duration,
+                    isFavourite: asset.isFavorite,
+                    isHidden: asset.isHidden,
+                    asset: asset)
+                
+                images.append(FSImageData(image: result, metaData: metaData))
                 
                 if asset == self.albumView.selectedAssets.last {
                     
@@ -532,7 +549,7 @@ extension FusumaViewController: FSAlbumViewDelegate, FSCameraViewDelegate, FSVid
     // MARK: FSCameraViewDelegate
     func cameraShotFinished(_ image: UIImage) {
         
-        delegate?.fusumaImageSelected(image, source: mode)
+        delegate?.fusumaImageSelected(FSImageData(image: image, metaData: nil), source: mode)
         
         self.doDismiss {
 
