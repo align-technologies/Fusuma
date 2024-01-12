@@ -488,6 +488,24 @@ public struct ImageMetadata {
         })
     }
     
+    private func requestImage(with asset: PHAsset, completion: @escaping (PHAsset, UIImage) -> Void) {
+        DispatchQueue.global(qos: .default).async(execute: {
+            let manager = PHImageManager.default()
+            let options = PHImageRequestOptions()
+            options.version = .original
+            options.deliveryMode = .highQualityFormat
+            options.isSynchronous = true
+            
+            manager.requestImage(for: asset, targetSize: PHImageManagerMaximumSize, contentMode: .aspectFit, options: options) { image, info in
+                guard let result = image else { return }
+                    
+                DispatchQueue.main.async(execute: {
+                    completion(asset, result)
+                })
+            }
+        })
+    }
+    
     private func fusumaDidFinishInMultipleMode() {
         
         guard let view = albumView.imageCropView else { return }
@@ -505,26 +523,51 @@ public struct ImageMetadata {
         
         for asset in albumView.selectedAssets {
             
-            requestImage(with: asset, cropRect: cropRect) { asset, result in
-                
-                let metaData = ImageMetadata(
-                    mediaType: asset.mediaType,
-                    pixelWidth: asset.pixelWidth,
-                    pixelHeight: asset.pixelHeight,
-                    creationDate: asset.creationDate,
-                    modificationDate: asset.modificationDate,
-                    location: asset.location,
-                    duration: asset.duration,
-                    isFavourite: asset.isFavorite,
-                    isHidden: asset.isHidden,
-                    asset: asset)
-                
-                images.append(FSImageData(image: result, metaData: metaData))
-                
-                if asset == self.albumView.selectedAssets.last {
+            if fusumaCropImage {
+                requestImage(with: asset, cropRect: cropRect) { asset, result in
                     
-                    self.doDismiss {
-                        self.delegate?.fusumaMultipleImageSelected(images, source: self.mode)
+                    let metaData = ImageMetadata(
+                        mediaType: asset.mediaType,
+                        pixelWidth: asset.pixelWidth,
+                        pixelHeight: asset.pixelHeight,
+                        creationDate: asset.creationDate,
+                        modificationDate: asset.modificationDate,
+                        location: asset.location,
+                        duration: asset.duration,
+                        isFavourite: asset.isFavorite,
+                        isHidden: asset.isHidden,
+                        asset: asset)
+                    
+                    images.append(FSImageData(image: result, metaData: metaData))
+                    
+                    if asset == self.albumView.selectedAssets.last {
+                        
+                        self.doDismiss {
+                            self.delegate?.fusumaMultipleImageSelected(images, source: self.mode)
+                        }
+                    }
+                }
+            } else {
+                requestImage(with: asset) { asset, result in
+                    let metaData = ImageMetadata(
+                        mediaType: asset.mediaType,
+                        pixelWidth: asset.pixelWidth,
+                        pixelHeight: asset.pixelHeight,
+                        creationDate: asset.creationDate,
+                        modificationDate: asset.modificationDate,
+                        location: asset.location,
+                        duration: asset.duration,
+                        isFavourite: asset.isFavorite,
+                        isHidden: asset.isHidden,
+                        asset: asset)
+                    
+                    images.append(FSImageData(image: result, metaData: metaData))
+                    
+                    if asset == self.albumView.selectedAssets.last {
+                        
+                        self.doDismiss {
+                            self.delegate?.fusumaMultipleImageSelected(images, source: self.mode)
+                        }
                     }
                 }
             }
